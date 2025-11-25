@@ -171,11 +171,6 @@ export default function CallTrackerPage() {
           <h2 className="text-2xl font-bold tracking-tight">Call Tracker</h2>
           <p className="text-muted-foreground">Track follow-ups and customer interactions</p>
         </div>
-
-        <Button onClick={() => openFollowUpFormForLead('')} className="w-full sm:w-auto">
-          <Plus className="size-4 mr-2" />
-          Record Follow-up
-        </Button>
       </div>
 
       {/* SUMMARY CARDS */}

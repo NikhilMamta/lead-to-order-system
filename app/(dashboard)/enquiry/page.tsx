@@ -47,7 +47,7 @@ export default function EnquiryPage() {
           directNoOrLeadNo: row[1],
           receivedType: row[2],
           personName: row[3],
-          totalPatient: Number(row[4]) || 0,
+          // totalPatient: Number(row[4]) || 0,
           patientName: row[5],
           patientPhoneNumber: row[6],
           patientAddress: row[7],
@@ -78,7 +78,7 @@ export default function EnquiryPage() {
       enquiry.directNoOrLeadNo || '',
       enquiry.receivedType || '',
       enquiry.personName || '',
-      enquiry.totalPatient != null ? String(enquiry.totalPatient) : '',
+      // enquiry.totalPatient != null ? String(enquiry.totalPatient) : '',
       enquiry.patientName || '',
       enquiry.patientPhoneNumber || '',
       enquiry.patientAddress || '',
@@ -181,14 +181,14 @@ export default function EnquiryPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        {/* <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Total Patients</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">{totalPatients}</div>
           </CardContent>
-        </Card>
+        </Card> */}
 
         <Card>
           <CardHeader className="pb-2">
@@ -222,7 +222,7 @@ export default function EnquiryPage() {
               <TableHead>Ref No</TableHead>
               <TableHead>Type</TableHead>
               <TableHead>Contact</TableHead>
-              <TableHead>Patients</TableHead>
+              {/* <TableHead>Patients</TableHead> */}
               <TableHead>Patient Names</TableHead>
               <TableHead>Phone</TableHead>
               <TableHead className="text-right">Actions</TableHead>
@@ -254,10 +254,10 @@ export default function EnquiryPage() {
                     </Badge>
                   </TableCell>
                   <TableCell>{enq.personName}</TableCell>
-                  <TableCell>
+                  {/* <TableCell>
                     <Users className="size-4 inline mr-1" />
                     {enq.totalPatient}
-                  </TableCell>
+                  </TableCell> */}
                   <TableCell className="max-w-xs truncate">{enq.patientName}</TableCell>
                   <TableCell>{enq.patientPhoneNumber}</TableCell>
                   <TableCell className="text-right">

@@ -5,7 +5,6 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { format } from 'date-fns'
-import { CalendarIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -32,11 +31,11 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Calendar } from '@/components/ui/calendar'
-import { cn } from '@/lib/utils'
 import { LeadDetails } from '@/lib/types'
 
+// ------------------------------
+// UPDATED SCHEMA (4 fields removed)
+// ------------------------------
 const leadSchema = z.object({
   leadNo: z.string().min(1, 'Lead No is required'),
   leadReceivedName: z.string().min(1, 'Receiver Name is required'),
@@ -50,11 +49,6 @@ const leadSchema = z.object({
   address: z.string().min(1, 'Address is required'),
   nob: z.string().min(1, 'Nature of Business is required'),
   remarks: z.string().optional(),
-  planned: z.string().optional(),
-  actual: z.string().optional(),
-  leadStatus: z.enum(['follow-up', 'received', 'cancelled']),
-  nextFollowupDate: z.string().optional(),
-  whatDidCustomerSay: z.string().optional(),
 })
 
 interface LeadFormProps {
@@ -80,11 +74,6 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData }: LeadForm
       address: '',
       nob: '',
       remarks: '',
-      planned: '',
-      actual: '',
-      leadStatus: 'follow-up',
-      nextFollowupDate: '',
-      whatDidCustomerSay: '',
     },
   })
 
@@ -103,15 +92,12 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData }: LeadForm
         address: initialData.address,
         nob: initialData.nob,
         remarks: initialData.remarks,
-        planned: initialData.planned,
-        actual: initialData.actual,
-        leadStatus: initialData.leadStatus,
-        nextFollowupDate: initialData.nextFollowupDate,
-        whatDidCustomerSay: initialData.whatDidCustomerSay,
       })
     } else {
       form.reset({
-        leadNo: `LD${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
+        leadNo: `LD${Math.floor(Math.random() * 10000)
+          .toString()
+          .padStart(4, '0')}`,
         leadReceivedName: '',
         leadSource: '',
         companyName: '',
@@ -123,72 +109,60 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData }: LeadForm
         address: '',
         nob: '',
         remarks: '',
-        planned: format(new Date(), 'yyyy-MM-dd'),
-        actual: '',
-        leadStatus: 'follow-up',
-        nextFollowupDate: '',
-        whatDidCustomerSay: '',
       })
     }
   }, [initialData, form, open])
 
-const timestamp = new Date()
-  .toLocaleString("en-GB", { hour12: false })
-  .replace(",", "");
+  const timestamp = new Date()
+    .toLocaleString('en-GB', { hour12: false })
+    .replace(',', '')
 
-const saveLeadToGoogleSheet = async (values: any) => {
-  const rowData = [
-  timestamp,
-  values.leadNo,
-  values.leadReceivedName,
-  values.leadSource,
-  values.companyName,
-  values.phoneNumber,
-  values.personName,
-  values.location,
-  values.emailAddress,
-  values.state,
-  values.address,
-  values.nob,
-  values.remarks || "",
-  values.planned || "",
-  values.actual || "",
-  "",
-  values.leadStatus,
-  values.nextFollowupDate || "",
-  values.whatDidCustomerSay || ""
-];
+  const saveLeadToGoogleSheet = async (values: any) => {
+    const rowData = [
+      timestamp,
+      values.leadNo,
+      values.leadReceivedName,
+      values.leadSource,
+      values.companyName,
+      values.phoneNumber,
+      values.personName,
+      values.location,
+      values.emailAddress,
+      values.state,
+      values.address,
+      values.nob,
+      values.remarks || '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+    ]
 
+    const formData = new URLSearchParams()
+    formData.append('action', 'insert')
+    formData.append('sheetName', 'FMS')
+    formData.append('rowData', JSON.stringify(rowData))
 
-  const formData = new URLSearchParams();
-  formData.append("action", "insert");
-  formData.append("sheetName", "FMS"); 
-  formData.append("rowData", JSON.stringify(rowData));
-
-  try {
-    const response = await fetch("https://script.google.com/macros/s/AKfycbw_096M3tJVKwb3Cv5O0OqbiuHkyuPkdJ22qoiWPdgzfpc0qVhyJKK67uv5I8-rnzri/exec", {
-      method: "POST",
-      body: formData
-    });
-
-    const result = await response.json();
-    console.log("Google Sheet Response:", result);
-
-    if (!result.success) {
-      alert("Failed to save to Google Sheet: " + result.error);
+    try {
+      await fetch(
+        'https://script.google.com/macros/s/AKfycbw_096M3tJVKwb3Cv5O0OqbiuHkyuPkdJ22qoiWPdgzfpc0qVhyJKK67uv5I8-rnzri/exec',
+        {
+          method: 'POST',
+          body: formData,
+        }
+      )
+    } catch (error) {
+      console.error('Google Sheet Error:', error)
     }
-
-  } catch (error) {
-    console.error("Google Sheet Error:", error);
   }
-};
 
   const handleSubmit = async (values: z.infer<typeof leadSchema>) => {
-  onSubmit(values);                  
-  await saveLeadToGoogleSheet(values);  
-  onOpenChange(false);                  
-};
-
+    onSubmit(values)
+    await saveLeadToGoogleSheet(values)
+    onOpenChange(false)
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -199,9 +173,13 @@ const saveLeadToGoogleSheet = async (values: any) => {
             Enter the details for the lead. Click save when you're done.
           </DialogDescription>
         </DialogHeader>
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+              {/* Lead No */}
               <FormField
                 control={form.control}
                 name="leadNo"
@@ -211,10 +189,11 @@ const saveLeadToGoogleSheet = async (values: any) => {
                     <FormControl>
                       <Input {...field} readOnly className="bg-muted" />
                     </FormControl>
-                    <FormMessage />
                   </FormItem>
                 )}
               />
+
+              {/* Received By */}
               <FormField
                 control={form.control}
                 name="leadReceivedName"
@@ -224,10 +203,11 @@ const saveLeadToGoogleSheet = async (values: any) => {
                     <FormControl>
                       <Input {...field} placeholder="Name" />
                     </FormControl>
-                    <FormMessage />
                   </FormItem>
                 )}
               />
+
+              {/* Source */}
               <FormField
                 control={form.control}
                 name="leadSource"
@@ -248,10 +228,11 @@ const saveLeadToGoogleSheet = async (values: any) => {
                         <SelectItem value="Other">Other</SelectItem>
                       </SelectContent>
                     </Select>
-                    <FormMessage />
                   </FormItem>
                 )}
               />
+
+              {/* Company Name */}
               <FormField
                 control={form.control}
                 name="companyName"
@@ -261,10 +242,11 @@ const saveLeadToGoogleSheet = async (values: any) => {
                     <FormControl>
                       <Input {...field} placeholder="Company" />
                     </FormControl>
-                    <FormMessage />
                   </FormItem>
                 )}
               />
+
+              {/* Contact Person */}
               <FormField
                 control={form.control}
                 name="personName"
@@ -274,10 +256,11 @@ const saveLeadToGoogleSheet = async (values: any) => {
                     <FormControl>
                       <Input {...field} placeholder="Person Name" />
                     </FormControl>
-                    <FormMessage />
                   </FormItem>
                 )}
               />
+
+              {/* Phone */}
               <FormField
                 control={form.control}
                 name="phoneNumber"
@@ -287,10 +270,11 @@ const saveLeadToGoogleSheet = async (values: any) => {
                     <FormControl>
                       <Input {...field} placeholder="+1234567890" />
                     </FormControl>
-                    <FormMessage />
                   </FormItem>
                 )}
               />
+
+              {/* Email */}
               <FormField
                 control={form.control}
                 name="emailAddress"
@@ -300,10 +284,11 @@ const saveLeadToGoogleSheet = async (values: any) => {
                     <FormControl>
                       <Input {...field} type="email" placeholder="email@example.com" />
                     </FormControl>
-                    <FormMessage />
                   </FormItem>
                 )}
               />
+
+              {/* Location */}
               <FormField
                 control={form.control}
                 name="location"
@@ -313,10 +298,11 @@ const saveLeadToGoogleSheet = async (values: any) => {
                     <FormControl>
                       <Input {...field} placeholder="City" />
                     </FormControl>
-                    <FormMessage />
                   </FormItem>
                 )}
               />
+
+              {/* State */}
               <FormField
                 control={form.control}
                 name="state"
@@ -326,10 +312,11 @@ const saveLeadToGoogleSheet = async (values: any) => {
                     <FormControl>
                       <Input {...field} placeholder="State" />
                     </FormControl>
-                    <FormMessage />
                   </FormItem>
                 )}
               />
+
+              {/* Address */}
               <FormField
                 control={form.control}
                 name="address"
@@ -339,71 +326,37 @@ const saveLeadToGoogleSheet = async (values: any) => {
                     <FormControl>
                       <Input {...field} placeholder="Full Address" />
                     </FormControl>
-                    <FormMessage />
                   </FormItem>
                 )}
               />
+
+              {/* ⭐ UPDATED: Nature of Business DROPDOWN */}
               <FormField
                 control={form.control}
                 name="nob"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Nature of Business</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="NOB" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="leadStatus"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Status</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select status" />
+                          <SelectValue placeholder="Select business type" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="follow-up">Follow Up</SelectItem>
-                        <SelectItem value="received">Received</SelectItem>
-                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                        <SelectItem value="Manufacturing">Manufacturing</SelectItem>
+                        <SelectItem value="Trading">Trading</SelectItem>
+                        <SelectItem value="Retail">Retail</SelectItem>
+                        <SelectItem value="Service">Service</SelectItem>
+                        <SelectItem value="IT">IT / Software</SelectItem>
+                        <SelectItem value="Others">Others</SelectItem>
                       </SelectContent>
                     </Select>
-                    <FormMessage />
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="planned"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Planned Date</FormLabel>
-                    <FormControl>
-                      <Input {...field} type="date" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="nextFollowupDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Next Follow-up</FormLabel>
-                    <FormControl>
-                      <Input {...field} type="date" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+
+              {/* Remarks */}
               <FormField
                 control={form.control}
                 name="remarks"
@@ -411,32 +364,19 @@ const saveLeadToGoogleSheet = async (values: any) => {
                   <FormItem className="md:col-span-3">
                     <FormLabel>Remarks</FormLabel>
                     <FormControl>
-                      <Textarea {...field} placeholder="Enter remarks here..." />
+                      <Textarea {...field} placeholder="Enter remarks..." />
                     </FormControl>
-                    <FormMessage />
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="whatDidCustomerSay"
-                render={({ field }) => (
-                  <FormItem className="md:col-span-3">
-                    <FormLabel>What Did Customer Say</FormLabel>
-                    <FormControl>
-                      <Textarea {...field} placeholder="Customer feedback..." />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+
             </div>
+
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
-              </Button>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
               <Button type="submit">Save Lead</Button>
             </DialogFooter>
+
           </form>
         </Form>
       </DialogContent>

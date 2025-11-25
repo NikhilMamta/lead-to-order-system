@@ -59,7 +59,7 @@ export default function LeadDetailsPage() {
       const json = await res.json()
 
       if (json && json.success && Array.isArray(json.data)) {
-        const cleanedRows = json.data.slice(5).filter((r: string[]) => r[1]);
+        const cleanedRows = json.data.slice(0).filter((r: string[]) => r[1]);
         const mapped: LeadDetails[] = cleanedRows.map((r: any[]) => ({
           id: crypto.randomUUID(),
           timestamp: convertDate(r[0]),

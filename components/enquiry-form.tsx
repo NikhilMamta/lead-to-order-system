@@ -61,7 +61,7 @@ export function EnquiryForm({ open, onOpenChange, onSubmit, initialData, presele
       directNoOrLeadNo: preselectedLeadNo || '',
       receivedType: preselectedLeadNo ? 'lead' : 'direct',
       personName: '',
-      totalPatient: 1,
+      // totalPatient: 1,
       patientName: '',
       patientPhoneNumber: '',
       patientAddress: '',
@@ -208,7 +208,7 @@ export function EnquiryForm({ open, onOpenChange, onSubmit, initialData, presele
                   </FormItem>
                 )}
               />
-              <FormField
+              {/* <FormField
                 control={form.control}
                 name="totalPatient"
                 render={({ field }) => (
@@ -220,7 +220,7 @@ export function EnquiryForm({ open, onOpenChange, onSubmit, initialData, presele
                     <FormMessage />
                   </FormItem>
                 )}
-              />
+              /> */}
               <FormField
                 control={form.control}
                 name="patientName"
