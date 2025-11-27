@@ -77,8 +77,8 @@ export default function LeadDetailsPage() {
           remarks: r[12] || '',
           planned: r[13] || '',
           actual: r[14] || '',
-          leadStatus: r[16] || 'follow-up',
-          nextFollowupDate: r[17] || '',
+          // leadStatus: r[16] || 'follow-up',
+          // nextFollowupDate: r[17] || '',
           whatDidCustomerSay: r[18] || '',
           timeDelay: r[19] || '0 days',
           planned1: '',
@@ -167,7 +167,7 @@ export default function LeadDetailsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-3 sm:px-4 md:px-6 lg:px-8 w-full max-w-full overflow-x-hidden">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Lead Details</h2>
@@ -207,8 +207,8 @@ export default function LeadDetailsPage() {
       </div>
 
       {/* Desktop Table */}
-      <div className="hidden md:block rounded-md border bg-card">
-        <Table>
+      <div className="hidden md:block rounded-md border bg-card overflow-x-auto w-full">
+        <Table className="min-w-[1200px]">
           <TableHeader>
             <TableRow>
               <TableHead>Lead No</TableHead>
@@ -297,14 +297,9 @@ export default function LeadDetailsPage() {
         {filteredLeads.map((lead) => (
           <Card key={lead.id}>
             <CardHeader className="pb-2">
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle className="text-base">{lead.companyName}</CardTitle>
-                  <p className="text-sm text-muted-foreground">{lead.personName}</p>
-                </div>
-                <Badge variant="secondary" className={getStatusColor(lead.leadStatus)}>
-                  {lead.leadStatus}
-                </Badge>
+              <div>
+                <CardTitle className="text-base">{lead.companyName}</CardTitle>
+                <p className="text-sm text-muted-foreground">{lead.personName}</p>
               </div>
             </CardHeader>
             <CardContent className="pb-2 space-y-2 text-sm">
@@ -318,7 +313,7 @@ export default function LeadDetailsPage() {
               </div>
               <div className="flex items-center gap-2">
                 <Mail className="size-4 text-muted-foreground" />
-                <span className="truncate">{lead.emailAddress}</span>
+                <span className="break-words whitespace-normal">{lead.emailAddress}</span>
               </div>
               <div className="flex items-center gap-2">
                 <MapPin className="size-4 text-muted-foreground" />
@@ -326,12 +321,12 @@ export default function LeadDetailsPage() {
                   {lead.location}, {lead.state}
                 </span>
               </div>
-              {lead.nextFollowupDate && (
+              {/* {lead.nextFollowupDate && (
                 <div className="flex items-center gap-2 text-orange-600">
                   <Calendar className="size-4" />
                   <span>Next: {lead.nextFollowupDate}</span>
                 </div>
-              )}
+              )} */}
             </CardContent>
             <CardFooter className="pt-2 border-t flex justify-between">
               <span className="text-xs text-muted-foreground">
