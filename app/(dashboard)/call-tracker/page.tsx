@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Search, Calendar, MessageSquare, ArrowRight } from 'lucide-react'
+import { Plus, Search, Calendar, MessageSquare, ArrowRight, Phone, Mail } from 'lucide-react'
 import { format } from 'date-fns'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -41,78 +41,99 @@ export default function CallTrackerPage() {
     'https://script.google.com/macros/s/AKfycbw_096M3tJVKwb3Cv5O0OqbiuHkyuPkdJ22qoiWPdgzfpc0qVhyJKK67uv5I8-rnzri/exec'
 
   // --------------------------------------------------
-  // ⭐ NEW FUNCTION: Fetch Follow-Ups from Google Sheet
+  // ⭐ NEW FUNCTION: Fetch FMS sheet data (single source)
   // --------------------------------------------------
-  const fetchFollowUpsFromGoogleSheet = async () => {
-    try {
-      const resp = await fetch(`${SCRIPT_URL}?action=getFollowUps`)
-      const json = await resp.json()
+  const fetchFMSFromGoogleSheet = async () => {
+  try {
+    const resp = await fetch(`${SCRIPT_URL}?action=getLeads`)
+    const json = await resp.json()
 
-      console.log("FOLLOW UPS FROM SHEET:", json)
+    console.log('FMS SHEET DATA:', json)
 
-      if (json.success && Array.isArray(json.data)) {
-        const formatted: FollowUpHistory[] = json.data.map((row: any) => ({
+    if (json.success && Array.isArray(json.data)) {
+
+      // 🔥 FILTER rows based on Planned/Actual conditions
+      const validRows = json.data.filter((row: any) => {
+        const planned = row[13];
+        const actual = row[14];
+
+        // Show only if: planned NOT null/empty AND actual null/empty
+        return planned && planned.trim() !== "" && (!actual || actual.trim() === "");
+      });
+
+      // Continue with formatted list (same as before)
+      const formatted: FollowUpHistory[] = validRows.map((row: any) => {
+        const timestampRaw = row[0];
+        const leadNo = (row[1] || "").toString();
+
+        return {
           id: crypto.randomUUID(),
-          timestamp: new Date(row[0]).toISOString(),
-          leadNo: row[1],
-          leadStatus: row[2],
-          nextFollowupDate: row[3] ? new Date(row[3]).toISOString() : null,
-          whatDidCustomerSay: row[4],
-        }))
+          timestamp: timestampRaw ? new Date(timestampRaw).toISOString() : new Date().toISOString(),
+          leadNo: leadNo,
+          leadStatus: "received",
+          nextFollowupDate: "",
+          whatDidCustomerSay: "",
+        } as FollowUpHistory;
+      });
 
-        setFollowUps(
-          formatted.sort(
-            (a: FollowUpHistory, b: FollowUpHistory) =>
-              new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-          )
-        )
-      }
-    } catch (err) {
-      console.error('Error loading follow-ups:', err)
+      setFollowUps(formatted);
+
+      const formattedLeads: LeadDetails[] = validRows.map((row: any, index: number) => ({
+        id: `lead-${index}`,
+        leadNo: (row[1] || "").toString(),
+
+        leadReceivedName: row[2] || "N/A",
+        leadSource: row[3] || "N/A",
+        companyName: row[4] || "N/A",
+        phoneNumber: row[5] || "N/A",
+        personName: row[6] || "N/A",
+
+        location: row[7] || "N/A",
+        emailAddress: row[8] || "N/A",
+        state: row[9] || "N/A",
+        address: row[10] || "N/A",
+        nob: row[11] || "N/A",
+        remarks: row[12] || "N/A",
+
+        leadStatus: "received",
+        nextFollowupDate: "",
+        whatDidCustomerSay: "",
+      }));
+
+      setLeads(formattedLeads);
+      leadStorage.setAll(formattedLeads)
     }
+  } catch (err) {
+    console.error('Error loading FMS data:', err)
   }
+}
+
 
   useEffect(() => {
     loadData()
   }, [])
 
   const loadData = () => {
-    fetchFollowUpsFromGoogleSheet()
-    setLeads(leadStorage.getAll())
+    // fetch only from FMS sheet (no Flw-Up sheet)
+    fetchFMSFromGoogleSheet()
+    // setLeads(leadStorage.getAll())
   }
 
   // -------------------------------------------------------------------------
-  // 🔥 Save Follow-Up Row to Google Sheet (Flw-Up)
+  // NOTE: Removed saveFollowUpToGoogleSheet - follow-ups will be local only
   // -------------------------------------------------------------------------
-  const saveFollowUpToGoogleSheet = async (data: FollowUpHistory) => {
-    const formData = new URLSearchParams()
-    formData.append('action', 'insertFollowUp')
-    formData.append('sheetName', 'Flw-Up')
-    formData.append('leadNo', data.leadNo || '')
-    formData.append('leadStatus', data.leadStatus || '')
-    formData.append('nextFollowupDate', data.nextFollowupDate || '')
-    formData.append('whatDidCustomerSay', data.whatDidCustomerSay || '')
-
-    try {
-      const response = await fetch(SCRIPT_URL, { method: 'POST', body: formData })
-      const result = await response.json()
-      console.log('Follow-up saved:', result)
-    } catch (error) {
-      console.error('Google Sheet Error:', error)
-    }
-  }
-
   const handleAddFollowUp = async (data: Partial<FollowUpHistory>) => {
     const newFollowUp: FollowUpHistory = {
       ...data,
       id: crypto.randomUUID(),
       timestamp: new Date().toISOString(),
+      leadStatus: data.leadStatus || 'received',
     } as FollowUpHistory
 
+    // persist locally (existing behavior)
     followUpStorage.add(newFollowUp)
 
-    await saveFollowUpToGoogleSheet(newFollowUp)
-
+    // update lead info in local leadStorage if lead exists
     if (data.leadNo) {
       const lead = leads.find((l) => l.leadNo === data.leadNo)
       if (lead) {
@@ -124,6 +145,7 @@ export default function CallTrackerPage() {
       }
     }
 
+    // refresh UI data (we still fetch FMS for authoritative data)
     loadData()
 
     toast({
@@ -135,7 +157,7 @@ export default function CallTrackerPage() {
   const filteredFollowUps = followUps.filter((fu) => {
     const matchesSearch =
       fu.leadNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      fu.whatDidCustomerSay.toLowerCase().includes(searchQuery.toLowerCase())
+      (fu.whatDidCustomerSay || '').toLowerCase().includes(searchQuery.toLowerCase())
 
     const matchesLead = selectedLeadFilter === 'all' || fu.leadNo === selectedLeadFilter
 
@@ -144,6 +166,7 @@ export default function CallTrackerPage() {
 
   const getLeadName = (leadNo: string) => {
     const lead = leads.find((l) => l.leadNo === leadNo)
+    // If companyName missing, return 'Unknown Lead' to match previous behavior
     return lead ? lead.companyName : 'Unknown Lead'
   }
 
@@ -248,8 +271,19 @@ export default function CallTrackerPage() {
             <TableRow>
               <TableHead></TableHead>
               <TableHead>Date & Time</TableHead>
-              <TableHead>Lead Details</TableHead>
-              <TableHead>Interaction Notes</TableHead>
+              <TableHead>Lead No.</TableHead>
+              <TableHead>Lead Receiver Name</TableHead>
+              <TableHead>Lead Source</TableHead>
+              <TableHead>Company Name</TableHead>
+              <TableHead>Person Name</TableHead>
+              <TableHead>Phone Number</TableHead>
+              <TableHead>Email Address</TableHead>
+              <TableHead>Location</TableHead>
+              <TableHead>State</TableHead>
+              <TableHead>Address</TableHead>
+              <TableHead>NOB</TableHead>
+              <TableHead>Remarks</TableHead>
+              <TableHead>What Did The Customer Say</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Next Action</TableHead>
             </TableRow>
@@ -258,62 +292,132 @@ export default function CallTrackerPage() {
           <TableBody>
             {filteredFollowUps.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                   No follow-up history found.
                 </TableCell>
               </TableRow>
             ) : (
-              filteredFollowUps.map((fu) => (
-                <TableRow key={fu.id}>
-                  <TableCell>
-                    <Button size="sm" onClick={() => openFollowUpFormForLead(fu.leadNo)}>
-                      Record Follow-up
-                    </Button>
-                  </TableCell>
+              filteredFollowUps.map((fu) => {
+                // find matching lead for this follow-up (from local leadStorage)
+                const lead = leads.find((l) => l.leadNo === fu.leadNo)
 
-                  <TableCell>
-                    <div className="flex flex-col">
-                      <span className="font-medium">
-                        {format(new Date(fu.timestamp), 'MMM dd, yyyy')}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {format(new Date(fu.timestamp), 'h:mm a')}
-                      </span>
-                    </div>
-                  </TableCell>
+                return (
+                  <TableRow key={fu.id}>
+                    <TableCell>
+                      <Button size="sm" onClick={() => openFollowUpFormForLead(fu.leadNo)}>
+                        Record Follow-up
+                      </Button>
+                    </TableCell>
 
-                  <TableCell>
-                    <div className="flex flex-col">
-                      <span className="font-medium">{getLeadName(fu.leadNo)}</span>
-                      <span className="text-xs text-muted-foreground">{fu.leadNo}</span>
-                    </div>
-                  </TableCell>
-
-                  <TableCell className="max-w-md">
-                    <div className="flex items-start gap-2">
-                      <MessageSquare className="size-4 mt-1 text-muted-foreground shrink-0" />
-                      <p className="text-sm">{fu.whatDidCustomerSay}</p>
-                    </div>
-                  </TableCell>
-
-                  <TableCell>
-                    <Badge variant="secondary" className={getStatusColor(fu.leadStatus)}>
-                      {fu.leadStatus}
-                    </Badge>
-                  </TableCell>
-
-                  <TableCell>
-                    {fu.nextFollowupDate ? (
-                      <div className="flex items-center text-sm text-orange-600">
-                        <Calendar className="size-3 mr-1" />
-                        {format(new Date(fu.nextFollowupDate), 'MMM dd, yyyy')}
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="font-medium">
+                          {format(new Date(fu.timestamp), 'MMM dd, yyyy')}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {format(new Date(fu.timestamp), 'h:mm a')}
+                        </span>
                       </div>
-                    ) : (
-                      <span className="text-muted-foreground text-sm">-</span>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))
+                    </TableCell>
+
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{fu.leadNo}</span>
+                      </div>
+                    </TableCell>
+
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{lead?.leadReceivedName}</span>
+                      </div>
+                    </TableCell>
+
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{lead?.leadSource}</span>
+                      </div>
+                    </TableCell>
+
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{lead?.companyName || 'N/A'}</span>
+                        {/* <span className="text-xs text-muted-foreground">{lead?.personName || 'N/A'}</span> */}
+                      </div>
+                    </TableCell>
+
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{lead?.personName || 'N/A'}</span>
+                      </div>
+                    </TableCell>
+
+                    <TableCell>
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center text-xs">
+                          <Phone className="size-3 mr-1" /> {lead?.phoneNumber || 'N/A'}
+                        </div>
+                      </div>
+                    </TableCell>
+
+                    <TableCell>
+                      <div className="flex items-center text-xs">
+                          <Mail className="size-3 mr-1" /> {lead?.emailAddress || 'N/A'}
+                        </div>
+                    </TableCell>
+
+                    <TableCell className="max-w-md">
+                      <div className="flex items-start gap-2">
+                        <p className="text-sm">{lead?.location || 'N/A'}</p>
+                      </div>
+                    </TableCell>
+
+                    <TableCell className="max-w-md">
+                      <div className="flex items-start gap-2">
+                        <p className="text-sm">{lead?.state || 'N/A'}</p>
+                      </div>
+                    </TableCell>
+
+                    <TableCell className="max-w-md">
+                      <div className="flex items-start gap-2">
+                        <p className="text-sm">{lead?.address || 'N/A'}</p>
+                      </div>
+                    </TableCell>
+
+                    <TableCell className="max-w-md">
+                      <div className="flex items-start gap-2">
+                        <p className="text-sm">{lead?.nob || 'N/A'}</p>
+                      </div>
+                    </TableCell>
+
+                    <TableCell className="max-w-md">
+                      <div className="flex items-start gap-2">
+                        <p className="text-sm">{lead?.remarks || 'N/A'}</p>
+                      </div>
+                    </TableCell>
+
+                    <TableCell>
+                      <div className="text-sm">{fu.whatDidCustomerSay || '-'}</div>
+                    </TableCell>
+
+                    <TableCell>
+                      <Badge variant="secondary" className={getStatusColor(fu.leadStatus)}>
+                        {fu.leadStatus}
+                      </Badge>
+                    </TableCell>
+
+                    <TableCell>
+                      {fu.nextFollowupDate ? (
+                        <div className="flex items-center text-sm text-orange-600">
+                          <Calendar className="size-3 mr-1" />
+                          {format(new Date(fu.nextFollowupDate), 'MMM dd, yyyy')}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                )
+              })
             )}
           </TableBody>
         </Table>

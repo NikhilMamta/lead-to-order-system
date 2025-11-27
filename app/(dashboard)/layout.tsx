@@ -25,8 +25,8 @@ const navigation = [
   { name: 'Lead Details', href: '/lead-details', icon: FileText },
   { name: 'Call Tracker', href: '/call-tracker', icon: Phone },
   { name: 'Received Patient', href: '/received-patient', icon: Users },
-  { name: 'Enquiry', href: '/enquiry', icon: MessageSquare },
-  { name: 'Calendar', href: '/calendar', icon: Calendar },
+  // { name: 'Enquiry', href: '/enquiry', icon: MessageSquare },
+  // { name: 'Calendar', href: '/calendar', icon: Calendar },
   { name: 'Settings', href: '/settings', icon: Settings },
 ]
 

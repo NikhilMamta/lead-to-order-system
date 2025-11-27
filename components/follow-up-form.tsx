@@ -33,6 +33,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { FollowUpHistory, LeadDetails } from '@/lib/types'
 import { leadStorage } from '@/lib/storage'
 
+// ---------------- Schema ----------------
 const followUpSchema = z.object({
   leadNo: z.string().min(1, 'Lead is required'),
   leadStatus: z.enum(['follow-up', 'received', 'cancelled']),
@@ -47,7 +48,12 @@ interface FollowUpFormProps {
   preselectedLeadNo?: string
 }
 
-export function FollowUpForm({ open, onOpenChange, onSubmit, preselectedLeadNo }: FollowUpFormProps) {
+export function FollowUpForm({
+  open,
+  onOpenChange,
+  onSubmit,
+  preselectedLeadNo,
+}: FollowUpFormProps) {
   const [leads, setLeads] = useState<LeadDetails[]>([])
 
   const form = useForm<z.infer<typeof followUpSchema>>({
@@ -60,16 +66,20 @@ export function FollowUpForm({ open, onOpenChange, onSubmit, preselectedLeadNo }
     },
   })
 
+  // ---------------- Load ONLY selected lead ----------------
   useEffect(() => {
-    setLeads(leadStorage.getAll())
-  }, [])
+    const allLeads = leadStorage.getAll()
 
-  useEffect(() => {
     if (preselectedLeadNo) {
+      const selected = allLeads.filter(l => l.leadNo === preselectedLeadNo)
+      setLeads(selected)
       form.setValue('leadNo', preselectedLeadNo)
+    } else {
+      setLeads(allLeads)
     }
-  }, [preselectedLeadNo, form])
+  }, [preselectedLeadNo])
 
+  // ---------------- Submit ----------------
   const handleSubmit = (values: z.infer<typeof followUpSchema>) => {
     onSubmit(values)
     onOpenChange(false)
@@ -81,30 +91,32 @@ export function FollowUpForm({ open, onOpenChange, onSubmit, preselectedLeadNo }
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Add Follow-up</DialogTitle>
-          <DialogDescription>
-            Record a new interaction with a lead.
-          </DialogDescription>
+          <DialogDescription>Record a new interaction with a lead.</DialogDescription>
         </DialogHeader>
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+
+            {/* ---------- Lead Selection (Locked to clicked row) ---------- */}
             <FormField
               control={form.control}
               name="leadNo"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Select Lead</FormLabel>
-                  <Select 
-                    onValueChange={field.onChange} 
+                  <Select
+                    onValueChange={field.onChange}
                     defaultValue={field.value}
-                    disabled={!!preselectedLeadNo}
+                    disabled={!!preselectedLeadNo} // 🔥 Lock dropdown
                   >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select a lead" />
                       </SelectTrigger>
                     </FormControl>
+
                     <SelectContent>
-                      {leads.map((lead) => (
+                      {leads.map(lead => (
                         <SelectItem key={lead.id} value={lead.leadNo}>
                           {lead.leadNo} - {lead.companyName}
                         </SelectItem>
@@ -115,6 +127,8 @@ export function FollowUpForm({ open, onOpenChange, onSubmit, preselectedLeadNo }
                 </FormItem>
               )}
             />
+
+            {/* ---------- Lead Status ---------- */}
             <FormField
               control={form.control}
               name="leadStatus"
@@ -137,6 +151,8 @@ export function FollowUpForm({ open, onOpenChange, onSubmit, preselectedLeadNo }
                 </FormItem>
               )}
             />
+
+            {/* ---------- Next Follow-up Date ---------- */}
             <FormField
               control={form.control}
               name="nextFollowupDate"
@@ -150,6 +166,8 @@ export function FollowUpForm({ open, onOpenChange, onSubmit, preselectedLeadNo }
                 </FormItem>
               )}
             />
+
+            {/* ---------- Customer Response ---------- */}
             <FormField
               control={form.control}
               name="whatDidCustomerSay"
@@ -157,9 +175,9 @@ export function FollowUpForm({ open, onOpenChange, onSubmit, preselectedLeadNo }
                 <FormItem>
                   <FormLabel>What Did Customer Say</FormLabel>
                   <FormControl>
-                    <Textarea 
-                      {...field} 
-                      placeholder="Record the conversation details..." 
+                    <Textarea
+                      {...field}
+                      placeholder="Record the conversation details..."
                       className="min-h-[100px]"
                     />
                   </FormControl>
@@ -167,8 +185,13 @@ export function FollowUpForm({ open, onOpenChange, onSubmit, preselectedLeadNo }
                 </FormItem>
               )}
             />
+
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+              >
                 Cancel
               </Button>
               <Button type="submit">Save Follow-up</Button>

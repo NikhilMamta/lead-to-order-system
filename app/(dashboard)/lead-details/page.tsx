@@ -216,8 +216,8 @@ export default function LeadDetailsPage() {
               <TableHead>Company / Person</TableHead>
               <TableHead>Contact</TableHead>
               <TableHead>Location</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Next Follow-up</TableHead>
+              {/* <TableHead>Status</TableHead>
+              <TableHead>Next Follow-up</TableHead> */}
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -250,7 +250,7 @@ export default function LeadDetailsPage() {
                     </div>
                   </TableCell>
                   <TableCell>{lead.location}</TableCell>
-                  <TableCell>
+                  {/* <TableCell>
                     <Badge variant="secondary" className={getStatusColor(lead.leadStatus)}>
                       {lead.leadStatus}
                     </Badge>
@@ -264,7 +264,7 @@ export default function LeadDetailsPage() {
                     ) : (
                       '-'
                     )}
-                  </TableCell>
+                  </TableCell> */}
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
                       <Button

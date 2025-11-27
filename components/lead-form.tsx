@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
-import { format } from 'date-fns'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -20,7 +19,6 @@ import {
   FormField,
   FormItem,
   FormLabel,
-  FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import {
@@ -34,17 +32,16 @@ import { Textarea } from '@/components/ui/textarea'
 import { LeadDetails } from '@/lib/types'
 
 // ------------------------------
-// UPDATED SCHEMA (4 fields removed)
+// FORM SCHEMA (Lead No removed)
 // ------------------------------
 const leadSchema = z.object({
-  leadNo: z.string().min(1, 'Lead No is required'),
   leadReceivedName: z.string().min(1, 'Receiver Name is required'),
   leadSource: z.string().min(1, 'Source is required'),
   companyName: z.string().min(1, 'Company Name is required'),
-  phoneNumber: z.string().min(10, 'Valid phone number is required'),
+  phoneNumber: z.string().min(10, 'Valid phone number required'),
   personName: z.string().min(1, 'Contact Person is required'),
   location: z.string().min(1, 'Location is required'),
-  emailAddress: z.string().email('Invalid email address'),
+  emailAddress: z.string().email('Invalid email'),
   state: z.string().min(1, 'State is required'),
   address: z.string().min(1, 'Address is required'),
   nob: z.string().min(1, 'Nature of Business is required'),
@@ -62,7 +59,6 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData }: LeadForm
   const form = useForm<z.infer<typeof leadSchema>>({
     resolver: zodResolver(leadSchema),
     defaultValues: {
-      leadNo: '',
       leadReceivedName: '',
       leadSource: '',
       companyName: '',
@@ -80,7 +76,6 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData }: LeadForm
   useEffect(() => {
     if (initialData) {
       form.reset({
-        leadNo: initialData.leadNo,
         leadReceivedName: initialData.leadReceivedName,
         leadSource: initialData.leadSource,
         companyName: initialData.companyName,
@@ -94,33 +89,51 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData }: LeadForm
         remarks: initialData.remarks,
       })
     } else {
-      form.reset({
-        leadNo: `LD${Math.floor(Math.random() * 10000)
-          .toString()
-          .padStart(4, '0')}`,
-        leadReceivedName: '',
-        leadSource: '',
-        companyName: '',
-        phoneNumber: '',
-        personName: '',
-        location: '',
-        emailAddress: '',
-        state: '',
-        address: '',
-        nob: '',
-        remarks: '',
-      })
+      form.reset()
     }
   }, [initialData, form, open])
+
+  // -------------------------------------------------
+  // ⭐ NEW: Fetch Last Lead No From Script API
+  // -------------------------------------------------
+  const fetchLastLeadNo = async () => {
+    try {
+      const resp = await fetch(
+        'https://script.google.com/macros/s/AKfycbw_096M3tJVKwb3Cv5O0OqbiuHkyuPkdJ22qoiWPdgzfpc0qVhyJKK67uv5I8-rnzri/exec?action=getLastLeadNo'
+      );
+      const json = await resp.json();
+      return json.lastLeadNo || "";
+    } catch (err) {
+      console.error("Failed to fetch last lead no:", err);
+      return "";
+    }
+  };
+
+  // -------------------------------------------------
+  // ⭐ NEW: Auto-generate Sequential Lead Number
+  // -------------------------------------------------
+  const generateSequentialLeadNo = async () => {
+    const last = await fetchLastLeadNo(); // e.g. "LN-015"
+
+    if (!last || last.trim() === "") return "LN-001";
+
+    const num = parseInt(last.split("-")[1] || "0");
+    const nextNum = (num + 1).toString().padStart(3, "0");
+
+    return `LN-${nextNum}`;
+  };
 
   const timestamp = new Date()
     .toLocaleString('en-GB', { hour12: false })
     .replace(',', '')
 
-  const saveLeadToGoogleSheet = async (values: any) => {
+  // -------------------------------------------------
+  // Save to Google Sheet
+  // -------------------------------------------------
+  const saveLeadToGoogleSheet = async (values: any, leadNo: string) => {
     const rowData = [
       timestamp,
-      values.leadNo,
+      leadNo,
       values.leadReceivedName,
       values.leadSource,
       values.companyName,
@@ -132,12 +145,9 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData }: LeadForm
       values.address,
       values.nob,
       values.remarks || '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
+      '', // Planned
+      '', // Actual
+      '', '', '', ''
     ]
 
     const formData = new URLSearchParams()
@@ -145,22 +155,23 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData }: LeadForm
     formData.append('sheetName', 'FMS')
     formData.append('rowData', JSON.stringify(rowData))
 
-    try {
-      await fetch(
-        'https://script.google.com/macros/s/AKfycbw_096M3tJVKwb3Cv5O0OqbiuHkyuPkdJ22qoiWPdgzfpc0qVhyJKK67uv5I8-rnzri/exec',
-        {
-          method: 'POST',
-          body: formData,
-        }
-      )
-    } catch (error) {
-      console.error('Google Sheet Error:', error)
-    }
+    await fetch(
+      'https://script.google.com/macros/s/AKfycbw_096M3tJVKwb3Cv5O0OqbiuHkyuPkdJ22qoiWPdgzfpc0qVhyJKK67uv5I8-rnzri/exec',
+      {
+        method: 'POST',
+        body: formData,
+      }
+    )
   }
 
+  // -------------------------------------------------
+  // ⭐ IMPORTANT: Handle Submit
+  // -------------------------------------------------
   const handleSubmit = async (values: z.infer<typeof leadSchema>) => {
-    onSubmit(values)
-    await saveLeadToGoogleSheet(values)
+    const newLeadNo = await generateSequentialLeadNo();   // ⭐ Now sequential
+
+    onSubmit({ ...values, leadNo: newLeadNo })
+    await saveLeadToGoogleSheet(values, newLeadNo)
     onOpenChange(false)
   }
 
@@ -169,9 +180,7 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData }: LeadForm
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{initialData ? 'Edit Lead' : 'Add New Lead'}</DialogTitle>
-          <DialogDescription>
-            Enter the details for the lead. Click save when you're done.
-          </DialogDescription>
+          <DialogDescription>Fill in the details below to save this lead.</DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
@@ -179,30 +188,14 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData }: LeadForm
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
-              {/* Lead No */}
-              <FormField
-                control={form.control}
-                name="leadNo"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Lead No</FormLabel>
-                    <FormControl>
-                      <Input {...field} readOnly className="bg-muted" />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-
-              {/* Received By */}
+              {/* Receiver Name */}
               <FormField
                 control={form.control}
                 name="leadReceivedName"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Received By</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Name" />
-                    </FormControl>
+                    <FormControl><Input {...field} /></FormControl>
                   </FormItem>
                 )}
               />
@@ -232,30 +225,26 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData }: LeadForm
                 )}
               />
 
-              {/* Company Name */}
+              {/* Company */}
               <FormField
                 control={form.control}
                 name="companyName"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Company Name</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Company" />
-                    </FormControl>
+                    <FormControl><Input {...field} /></FormControl>
                   </FormItem>
                 )}
               />
 
-              {/* Contact Person */}
+              {/* Person Name */}
               <FormField
                 control={form.control}
                 name="personName"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Contact Person</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Person Name" />
-                    </FormControl>
+                    <FormControl><Input {...field} /></FormControl>
                   </FormItem>
                 )}
               />
@@ -267,9 +256,7 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData }: LeadForm
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Phone Number</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="+1234567890" />
-                    </FormControl>
+                    <FormControl><Input {...field} /></FormControl>
                   </FormItem>
                 )}
               />
@@ -281,9 +268,7 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData }: LeadForm
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input {...field} type="email" placeholder="email@example.com" />
-                    </FormControl>
+                    <FormControl><Input {...field} type="email" /></FormControl>
                   </FormItem>
                 )}
               />
@@ -295,9 +280,7 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData }: LeadForm
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Location</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="City" />
-                    </FormControl>
+                    <FormControl><Input {...field} /></FormControl>
                   </FormItem>
                 )}
               />
@@ -309,28 +292,24 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData }: LeadForm
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>State</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="State" />
-                    </FormControl>
+                    <FormControl><Input {...field} /></FormControl>
                   </FormItem>
                 )}
               />
 
-              {/* Address */}
+              {/* Address – Full Width */}
               <FormField
                 control={form.control}
                 name="address"
                 render={({ field }) => (
                   <FormItem className="md:col-span-3">
-                    <FormLabel>Address</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Full Address" />
-                    </FormControl>
+                    <FormLabel>Full Address</FormLabel>
+                    <FormControl><Input {...field} /></FormControl>
                   </FormItem>
                 )}
               />
 
-              {/* ⭐ UPDATED: Nature of Business DROPDOWN */}
+              {/* NOB */}
               <FormField
                 control={form.control}
                 name="nob"
@@ -340,7 +319,7 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData }: LeadForm
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select business type" />
+                          <SelectValue placeholder="Select" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -356,7 +335,7 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData }: LeadForm
                 )}
               />
 
-              {/* Remarks */}
+              {/* Remarks – Full Width */}
               <FormField
                 control={form.control}
                 name="remarks"
@@ -364,7 +343,7 @@ export function LeadForm({ open, onOpenChange, onSubmit, initialData }: LeadForm
                   <FormItem className="md:col-span-3">
                     <FormLabel>Remarks</FormLabel>
                     <FormControl>
-                      <Textarea {...field} placeholder="Enter remarks..." />
+                      <Textarea {...field} placeholder="Write remarks here..." />
                     </FormControl>
                   </FormItem>
                 )}

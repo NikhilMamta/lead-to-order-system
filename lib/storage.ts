@@ -71,6 +71,10 @@ export const leadStorage = {
     const filtered = leads.filter((lead) => lead.id !== id)
     storage.set(STORAGE_KEYS.LEADS, filtered)
   },
+
+  setAll: (leads: LeadDetails[]) => {
+    localStorage.setItem("leads", JSON.stringify(leads));
+  },
 }
 
 // Follow-up History Management
